@@ -74,17 +74,22 @@ stopifnot(max(datos_modelo$idx_espacio) == g_clean$n)
 cat("Índices espacio: 1 a", max(datos_modelo$idx_espacio), "\n")
 cat("Índices tiempo:  1 a", max(datos_modelo$idx_tiempo),  "\n")
 
-###############################################################################
-# 3. MODEL A: Baseline (no covariates)
-# - Response: log FOI time-varying
-# - Spatial random effect: BESAG
-# - Temporal random effect: IID
-###############################################################################
+#------------------------------------------------------------------------------------------
 
-formula_A <- log_FOI_mtv ~ 1 +
+###############################################################################
+# 3. CONSTANT FOI MODELS (log_FOI_kte)
+###############################################################################
+# These models evaluate the association between spatial-temporal structure
+# and climate covariates using constant FOI estimates.
+
+#------------------------------------------------------------------------------
+# 3.1 Baseline model (space + time only)
+#------------------------------------------------------------------------------
+
+formula_A_kte <- log_FOI_kte ~ 1 +
   f(idx_espacio,
-    model       = "besag",
-    graph       = g_clean,
+    model = "besag",
+    graph = g_clean,
     scale.model = TRUE,
     hyper = list(
       prec = list(prior = "pc.prec", param = c(1, 0.01))
@@ -95,27 +100,22 @@ formula_A <- log_FOI_mtv ~ 1 +
       prec = list(prior = "pc.prec", param = c(1, 0.01))
     ))
 
-modelo_A <- inla(
-  formula_A,
-  data              = datos_modelo,
-  family            = "gaussian",
-  control.predictor = list(compute = TRUE),
-  control.compute   = list(dic = TRUE, waic = TRUE, cpo = TRUE, config = TRUE)
+modelo_A_kte <- inla(
+  formula_A_kte,
+  data = datos_modelo,
+  family = "gaussian",
+  control.compute = list(dic = TRUE, waic = TRUE)
 )
 
-summary(modelo_A)
+#------------------------------------------------------------------------------
+# 3.2 Full climate model
+#------------------------------------------------------------------------------
 
-###############################################################################
-# 4. MODEL B: Full multivariable model
-# - Adds lagged and standardized climate covariates
-# - Same spatial + temporal structure as Model A
-###############################################################################
-
-formula_B <- log_FOI_mtv ~ 1 +
+formula_B_kte <- log_FOI_kte ~ 1 +
   temp_lag + prec_lag + hum_lag +
   f(idx_espacio,
-    model       = "besag",
-    graph       = g_clean,
+    model = "besag",
+    graph = g_clean,
     scale.model = TRUE,
     hyper = list(
       prec = list(prior = "pc.prec", param = c(1, 0.01))
@@ -126,122 +126,173 @@ formula_B <- log_FOI_mtv ~ 1 +
       prec = list(prior = "pc.prec", param = c(1, 0.01))
     ))
 
-modelo_B <- inla(
-  formula_B,
-  data              = datos_modelo,
-  family            = "gaussian",
-  control.predictor = list(compute = TRUE),
-  control.compute   = list(dic = TRUE, waic = TRUE, cpo = TRUE)
+modelo_B_kte <- inla(
+  formula_B_kte,
+  data = datos_modelo,
+  family = "gaussian",
+  control.compute = list(dic = TRUE, waic = TRUE)
 )
 
-summary(modelo_B)
-summary(modelo_B)$fixed
-
-###############################################################################
-# 5. UNIVARIATE MODELS (one covariate at a time)
-###############################################################################
+#------------------------------------------------------------------------------
+# 3.3 Univariate climate models
+#------------------------------------------------------------------------------
 
 vars_clima <- c("temp_lag", "prec_lag", "hum_lag")
 
-make_formula_uni <- function(v) {
+make_formula_uni_kte <- function(v) {
   as.formula(paste0(
-    "log_FOI_mtv ~ 1 + ", v, " + ",
-    "f(idx_espacio, model = 'besag', graph = g_clean, scale.model = TRUE,
-       hyper = list(prec = list(prior = 'pc.prec', param = c(1, 0.01)))) + ",
-    "f(idx_tiempo, model = 'iid',
-       hyper = list(prec = list(prior = 'pc.prec', param = c(1, 0.01))))"
+    "log_FOI_kte ~ 1 + ", v, " + ",
+    "f(idx_espacio, model='besag', graph=g_clean, scale.model=TRUE,
+       hyper=list(prec=list(prior='pc.prec', param=c(1,0.01)))) + ",
+    "f(idx_tiempo, model='iid',
+       hyper=list(prec=list(prior='pc.prec', param=c(1,0.01))))"
   ))
 }
 
-modelos_uni <- lapply(vars_clima, function(v) {
+modelos_uni_kte <- lapply(vars_clima, function(v) {
   inla(
-    make_formula_uni(v),
-    data            = datos_modelo,
-    family          = "gaussian",
+    make_formula_uni_kte(v),
+    data = datos_modelo,
+    family = "gaussian",
     control.compute = list(dic = TRUE, waic = TRUE)
   )
 })
 
-names(modelos_uni) <- vars_clima
+names(modelos_uni_kte) <- vars_clima
+
 
 ###############################################################################
-# 6. MODEL COMPARISON (DIC and WAIC)
+# 4. TIME-VARYING FOI MODELS (log_FOI_mtv)
 ###############################################################################
+# Same structure, but using time-varying FOI estimates.
 
-comparacion <- data.frame(
-  modelo = c("A_base", "B_multivariable", names(modelos_uni)),
-  DIC = c(
-    modelo_A$dic$dic,
-    modelo_B$dic$dic,
-    sapply(modelos_uni, function(m) m$dic$dic)
-  ),
-  WAIC = c(
-    modelo_A$waic$waic,
-    modelo_B$waic$waic,
-    sapply(modelos_uni, function(m) m$waic$waic)
+#------------------------------------------------------------------------------
+# 4.1 Baseline model
+#------------------------------------------------------------------------------
+
+formula_A_mtv <- update(formula_A_kte, log_FOI_mtv ~ .)
+
+modelo_A_mtv <- inla(
+  formula_A_mtv,
+  data = datos_modelo,
+  family = "gaussian",
+  control.compute = list(dic = TRUE, waic = TRUE)
+)
+
+#------------------------------------------------------------------------------
+# 4.2 Full climate model
+#------------------------------------------------------------------------------
+
+formula_B_mtv <- update(formula_B_kte, log_FOI_mtv ~ .)
+
+modelo_B_mtv <- inla(
+  formula_B_mtv,
+  data = datos_modelo,
+  family = "gaussian",
+  control.compute = list(dic = TRUE, waic = TRUE)
+)
+
+#------------------------------------------------------------------------------
+# 4.3 Univariate climate models
+#------------------------------------------------------------------------------
+
+make_formula_uni_mtv <- function(v) {
+  update(make_formula_uni_kte(v), log_FOI_mtv ~ .)
+}
+
+modelos_uni_mtv <- lapply(vars_clima, function(v) {
+  inla(
+    make_formula_uni_mtv(v),
+    data = datos_modelo,
+    family = "gaussian",
+    control.compute = list(dic = TRUE, waic = TRUE)
   )
-) |>
-  arrange(WAIC)
+})
 
-print(comparacion, row.names = FALSE)
+names(modelos_uni_mtv) <- vars_clima
 
-###############################################################################
-# 7. SAVE RESULTS
-###############################################################################
-
-saveRDS(datos_modelo, "data/datos_modelo_indexed.rds")
-saveRDS(g_clean,      "data/grafo_clean.rds")
-saveRDS(modelo_A,     "results/modelo_A.rds")
-saveRDS(modelo_B,     "results/modelo_B.rds")
-saveRDS(modelos_uni,  "results/modelos_univariables.rds")
-saveRDS(comparacion,  "results/comparacion_modelos.rds")
 
 ###############################################################################
-# 8. EXTENSION: Repeat models A and B with constant FOI
+# 5. ELEVATION MODELS
 ###############################################################################
+# Same model structure, replacing temperature with elevation.
+# This evaluates whether static topography explains FOI variability.
 
-formula_A_kte <- update(formula_A, log_FOI_kte ~ .)
-formula_B_kte <- update(formula_B, log_FOI_kte ~ .)
+vars_elev <- c("elevation", "prec_lag", "hum_lag")
 
-modelo_A_kte <- inla(
-  formula_A_kte,
-  data            = datos_modelo,
-  family          = "gaussian",
+#------------------------------------------------------------------------------
+# 5.1 Constant FOI with elevation
+#------------------------------------------------------------------------------
+
+formula_elev_kte <- log_FOI_kte ~ 1 +
+  elevation + prec_lag + hum_lag +
+  f(idx_espacio, model = "besag", graph = g_clean, scale.model = TRUE) +
+  f(idx_tiempo, model = "iid")
+
+modelo_elev_kte <- inla(
+  formula_elev_kte,
+  data = datos_modelo,
+  family = "gaussian",
   control.compute = list(dic = TRUE, waic = TRUE)
 )
 
-modelo_B_kte <- inla(
-  formula_B_kte,
-  data            = datos_modelo,
-  family          = "gaussian",
+#------------------------------------------------------------------------------
+# 5.2 Time-varying FOI with elevation
+#------------------------------------------------------------------------------
+
+formula_elev_mtv <- update(formula_elev_kte, log_FOI_mtv ~ .)
+
+modelo_elev_mtv <- inla(
+  formula_elev_mtv,
+  data = datos_modelo,
+  family = "gaussian",
   control.compute = list(dic = TRUE, waic = TRUE)
 )
 
-summary(modelo_A_kte)
-summary(modelo_B_kte)
 
-saveRDS(modelo_A_kte, "results/modelo_A_kte.rds")
-saveRDS(modelo_B_kte, "results/modelo_B_kte.rds")
+###############################################################################
+# 6. PSEUDO-R² FUNCTION
+###############################################################################
 
+calc_R2 <- function(modelo, y_obs) {
+  y_pred <- modelo$summary.fitted.values$mean
+  ss_res <- sum((y_obs - y_pred)^2, na.rm = TRUE)
+  ss_tot <- sum((y_obs - mean(y_obs, na.rm = TRUE))^2, na.rm = TRUE)
+  round(1 - (ss_res / ss_tot), 4)
+}
 
 
 ###############################################################################
-# 8.1. MODEL COMPARISON (DIC and WAIC)
+# 7. MODEL COMPARISON TABLE
 ###############################################################################
 
-comparacion <- data.frame(
-  modelo = c("A_base", "B_multivariable", names(modelos_uni)),
-  DIC = c(
-    modelo_A_kte$dic$dic,
-    modelo_B_kte$dic$dic,
-    sapply(modelos_uni, function(m) m$dic$dic)
+comparacion_final <- data.frame(
+  Model = c(
+    "Baseline_kte",
+    "Climate_kte",
+    "Elevation_kte",
+    "Baseline_mtv",
+    "Climate_mtv",
+    "Elevation_mtv"
   ),
   WAIC = c(
     modelo_A_kte$waic$waic,
     modelo_B_kte$waic$waic,
-    sapply(modelos_uni, function(m) m$waic$waic)
+    modelo_elev_kte$waic$waic,
+    modelo_A_mtv$waic$waic,
+    modelo_B_mtv$waic$waic,
+    modelo_elev_mtv$waic$waic
+  ),
+  R2 = c(
+    calc_R2(modelo_A_kte, datos_modelo$log_FOI_kte),
+    calc_R2(modelo_B_kte, datos_modelo$log_FOI_kte),
+    calc_R2(modelo_elev_kte, datos_modelo$log_FOI_kte),
+    calc_R2(modelo_A_mtv, datos_modelo$log_FOI_mtv),
+    calc_R2(modelo_B_mtv, datos_modelo$log_FOI_mtv),
+    calc_R2(modelo_elev_mtv, datos_modelo$log_FOI_mtv)
   )
-) |>
-  arrange(WAIC)
+)
 
-print(comparacion, row.names = FALSE)
+print(comparacion_final)
+
+

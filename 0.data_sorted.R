@@ -108,8 +108,60 @@ datos_completos <- datos_base |>
   )
 
 
+
 ###############################################################################
-# 7. Data validation and diagnostics
+# 7. Load and prepare elevation data
+###############################################################################
+
+# corregir elevation
+elevation <- read_excel("data/elevation.xlsx") |>
+  mutate(cod_mun = str_pad(cod_mun, width = 5, pad = "0")) |>
+  select(cod_mun, elevation)
+
+# corregir datos_completos y rehacer join
+datos_completos <- datos_completos |>
+  mutate(cod_mun = str_pad(cod_mun, width = 5, pad = "0")) |>
+  select(-any_of("elevation")) |>
+  left_join(elevation, by = "cod_mun")
+
+datos_completos |> #To verified
+  summarise(
+    n_municipios = n_distinct(cod_mun),
+    missing_elev = sum(is.na(elevation))
+  )
+
+
+
+###############################################################################
+# 8. Load and prepare population density data
+###############################################################################
+
+densidad_mun <- readRDS("data/densidad_mun2018_2035.rds") |>
+  filter(!is.na(cod_mun)) |>
+  mutate(
+    cod_mun = str_pad(cod_mun, width = 5, pad = "0"),
+    year = as.numeric(Año),
+    densidad = densidad |>
+      str_replace_all("\\.", "") |>
+      str_replace(",", ".") |>
+      as.numeric()
+  ) |>
+  select(cod_mun, year, densidad)
+
+# extend backwards using 2018 value
+densidad_expandida <- densidad_mun |>
+  group_by(cod_mun) |>
+  complete(year = 2007:2023) |>
+  arrange(year) |>
+  fill(densidad, .direction = "downup") |>
+  ungroup()
+
+datos_completos <- datos_completos |>
+  left_join(densidad_expandida, by = c("cod_mun", "year"))
+
+
+###############################################################################
+# 9. Data validation and diagnostics
 ###############################################################################
 
 datos_completos |>
@@ -118,15 +170,16 @@ datos_completos |>
     missing_temp     = sum(is.na(mean_2m_temperature_annual_mean)),
     missing_prec     = sum(is.na(acum_total_precipitation_precip_total_anual)),
     missing_hum      = sum(is.na(mean_relative_humidity_annual_mean)),
-    missing_geo      = sum(is.na(latitud))
+    missing_geo      = sum(is.na(latitud)),
+    missing_altu     = sum(is.na(elevation)),
+    missing_geo      = sum(is.na(densidad))
   )
 
-
 ###############################################################################
-# 8. Save final dataset
+# 10. Save final dataset
 ###############################################################################
 
 saveRDS(
   datos_completos,
-  "scripts/INLA_models/data/datos_completos.rds"
+  "data/datos_completos.rds"
 )
