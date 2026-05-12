@@ -216,7 +216,32 @@ modelo_B_kte <- inla(
   family          = "gaussian",
   control.compute = list(dic = TRUE, waic = TRUE)
 )
+
+summary(modelo_A_kte)
 summary(modelo_B_kte)
 
 saveRDS(modelo_A_kte, "results/modelo_A_kte.rds")
 saveRDS(modelo_B_kte, "results/modelo_B_kte.rds")
+
+
+
+###############################################################################
+# 8.1. MODEL COMPARISON (DIC and WAIC)
+###############################################################################
+
+comparacion <- data.frame(
+  modelo = c("A_base", "B_multivariable", names(modelos_uni)),
+  DIC = c(
+    modelo_A_kte$dic$dic,
+    modelo_B_kte$dic$dic,
+    sapply(modelos_uni, function(m) m$dic$dic)
+  ),
+  WAIC = c(
+    modelo_A_kte$waic$waic,
+    modelo_B_kte$waic$waic,
+    sapply(modelos_uni, function(m) m$waic$waic)
+  )
+) |>
+  arrange(WAIC)
+
+print(comparacion, row.names = FALSE)

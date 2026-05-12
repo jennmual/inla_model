@@ -11,7 +11,7 @@ library(INLA)
 library(stringi)
 
 # Load processed dataset from Script 0
-datos_completos <- readRDS("scripts/INLA_models/data/datos_completos.rds")
+datos_completos <- readRDS("data/datos_completos.rds")
 
 
 ###############################################################################
@@ -59,7 +59,7 @@ datos_modelo <- datos_modelo |>
 ###############################################################################
 
 mun_sf <- st_read(
-  "data/shape_colombia_files/gadm41_COL.gpkg",
+  "data/gadm41_COL.gpkg",
   layer = "ADM_ADM_2"
 )
 
@@ -213,7 +213,7 @@ plot(nb, coords, add = TRUE, col = "red", lwd = 0.5)
 ###############################################################################
 
 dpto_sf <- st_read(
-  "data/shape_colombia_files/gadm41_COL.gpkg",
+  "data/gadm41_COL.gpkg",
   layer = "ADM_ADM_1"
 )
 
@@ -245,6 +245,6 @@ plot(nb, coords,
 # 10. Save processed objects
 ###############################################################################
 
-saveRDS(mun_estudio, "scripts/INLA_models/data/mun_estudio.rds")
-saveRDS(datos_modelo, "scripts/INLA_models/data/datos_modelo.rds")
-saveRDS(g, "scripts/INLA_models/data/grafo_inla.rds")
+saveRDS(mun_estudio, "data/mun_estudio.rds")
+saveRDS(datos_modelo, "data/datos_modelo.rds")
+saveRDS(g, "data/grafo_inla.rds")
