@@ -1,0 +1,17 @@
+"tipo","variable","media","q025","q975","IC_width","significativo"
+"Point estimate
+(median FOI)","Elevation",-0.0554498926813447,-0.0798511127397049,-0.0306952044313181,0.0492,"Yes"
+"Propagated
+uncertainty","Elevation",-0.0423241219193182,-0.0484039003077291,-0.0354111568207127,0.013,"Yes"
+"Point estimate
+(median FOI)","Population density",-0.0625771959521575,-0.0868622391362764,-0.0385041586984837,0.0484,"Yes"
+"Propagated
+uncertainty","Population density",-0.0603426108675207,-0.0662319571463067,-0.0539659408552835,0.0123,"Yes"
+"Point estimate
+(median FOI)","Precipitation",-0.079439428099916,-0.108153149838076,-0.0508315729473023,0.0573,"Yes"
+"Propagated
+uncertainty","Precipitation",-0.07982931939067,-0.0873653740302696,-0.072839288045622,0.0145,"Yes"
+"Point estimate
+(median FOI)","Relative humidity",0.00109155804202745,-0.0411994441286412,0.0448851731025955,0.0861,"No"
+"Propagated
+uncertainty","Relative humidity",0.0239277978932141,0.0134158042745066,0.0360826663782799,0.0227,"Yes"

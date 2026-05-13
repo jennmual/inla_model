@@ -53,6 +53,13 @@ scale_global <- function(x) {
 datos_modelo <- datos_modelo |>
   mutate(across(c(temp_lag, prec_lag, hum_lag), scale_global))
 
+# (climate variables already scaled above; add geographic/demographic here)
+datos_modelo <- datos_modelo |>
+  mutate(
+    elevation_z  = scale_global(elevation),    # ajusta nombre si difiere
+    pop_dens_z   = scale_global(densidad)   # ajusta nombre si difiere
+  )
+
 
 ###############################################################################
 # 3. Load and prepare spatial data (municipal shapefile)
